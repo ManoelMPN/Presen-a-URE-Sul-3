@@ -92,16 +92,36 @@ export const resetPresence = async (coordinatorId: string) => {
 };
 
 export const seedCoordinators = async (coordinators: Omit<Coordinator, 'id' | 'presenceStatus' | 'updatedAt'>[]) => {
-  try {
-    for (const coord of coordinators) {
-      const id = coord.code; // Use code as ID for easy URL creation
-      await setDoc(doc(db, 'coordinators', id), {
+  const errors: string[] = [];
+  let successCount = 0;
+
+  for (const coord of coordinators) {
+    try {
+      // Sanitize code for safety as document ID (only alphanumeric, _, -)
+      const sanitizedId = coord.code.trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
+      
+      if (!sanitizedId) {
+        errors.push(`Código inválido para o coordenador: ${coord.name}`);
+        continue;
+      }
+
+      await setDoc(doc(db, 'coordinators', sanitizedId), {
         ...coord,
+        id: sanitizedId, // Ensure ID is stored
+        code: coord.code.trim(), // Keep original code label
         presenceStatus: 'absent',
         updatedAt: new Date().toISOString()
       });
+      successCount++;
+    } catch (error) {
+      console.error(`Erro ao importar ${coord.name}:`, error);
+      errors.push(`${coord.name}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, 'coordinators');
   }
+
+  if (errors.length > 0 && successCount === 0) {
+    throw new Error(`Falha total: ${errors[0]}`);
+  }
+  
+  return { successCount, errorCount: errors.length };
 };
