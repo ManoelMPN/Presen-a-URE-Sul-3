@@ -1,0 +1,6 @@
+{
+  "name": "Sistema de Presença QR Code",
+  "description": "Sistema de controle de presença em tempo real para coordenadores via QR Code com integração Firebase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

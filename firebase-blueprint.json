@@ -1,0 +1,43 @@
+{
+  "entities": {
+    "coordinator": {
+      "title": "Coordinator",
+      "description": "Information about a school coordinator.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "school": { "type": "string" },
+        "name": { "type": "string" },
+        "rg": { "type": "string" },
+        "code": { "type": "string" },
+        "qrCodeLink": { "type": "string" },
+        "presenceStatus": { "type": "string", "enum": ["present", "absent"] },
+        "presenceDate": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "name", "code"]
+    },
+    "attendanceLog": {
+      "title": "Attendance Log",
+      "description": "Log entry for when a coordinator registers presence.",
+      "type": "object",
+      "properties": {
+        "coordinatorId": { "type": "string" },
+        "coordinatorName": { "type": "string" },
+        "scannedAt": { "type": "string", "format": "date-time" },
+        "deviceInfo": { "type": "string" }
+      },
+      "required": ["coordinatorId", "scannedAt"]
+    }
+  },
+  "firestore": {
+    "coordinators": {
+      "schema": "coordinator",
+      "description": "List of school coordinators."
+    },
+    "logs": {
+      "schema": "attendanceLog",
+      "description": "Historical log of all scans."
+    }
+  }
+}

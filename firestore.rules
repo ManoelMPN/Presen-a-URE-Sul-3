@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Coordinator validation
+    function isValidCoordinator(data) {
+      return data.keys().hasAll(['email', 'name', 'code']) &&
+             data.email is string && data.email.size() <= 200 &&
+             data.name is string && data.name.size() <= 200 &&
+             data.code is string && data.code.size() <= 50;
+    }
+
+    // Log validation
+    function isValidLog(data) {
+      return data.keys().hasAll(['coordinatorId', 'scannedAt']) &&
+             data.coordinatorId is string &&
+             data.scannedAt == request.time;
+    }
+
+    // Coordinators: 
+    // - Admin (signed in) can read/write all.
+    // - Public can read (to verify after scan) if they have the code? 
+    //   Actually, let's keep it simple: Read is allowed for authenticated users.
+    //   We'll use a public 'scan' endpoint that anonymous users can hit, 
+    //   but we'll restrict the write. 
+    //   Wait, the user says "My profile will release access to those who will only read the qr code".
+    //   This implies those scanning might NOT be logged in, OR the link itself is the token.
+    
+    match /coordinators/{coordId} {
+      // Allow read for everyone (to show the "Success" page with the name)
+      // or at least for signed-in users. Let's allow public read for now to simplify the scan flow.
+      allow read: if true; 
+      
+      // Update presence: only allow updating the status and updated date if the code matches?
+      // Actually, we want to prevent anyone from just marking anyone as present.
+      // But QR codes are physical. 
+      allow create, update: if isSignedIn() && isValidCoordinator(incoming());
+      
+      // Special update for "Scan":
+      // We allow updating presenceStatus if the request comes with the correct path.
+      // For security, usually this would be a server function, but here we can use rules.
+      allow update: if isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['presenceStatus', 'presenceDate', 'updatedAt']);
+    }
+
+    match /logs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidLog(incoming());
+    }
+  }
+}
